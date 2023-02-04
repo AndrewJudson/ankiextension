@@ -32,8 +32,11 @@ export interface ContentProps {
 
 const Content = ({ setVisible, storage, runtime, ignoreHttp }: ContentProps) => {
   const [apiKey, setApiKey] = React.useState(null);
+  const [appSelection, setApp] = React.useState(null);
   const [ankiKey, setAnkiKey] = React.useState(null);
   const [ankiDeck, setAnkiDeck] = React.useState(null);
+  const [mochiKey, setMochiKey] = React.useState(null);
+  const [mochiDeck, setMochiDeck] = React.useState(null);
   const [question, setQuestion] = React.useState('');
   const [answer, setAnswer] = React.useState('');
   const [isHttps, setIsHttps] = React.useState(true);
@@ -41,6 +44,7 @@ const Content = ({ setVisible, storage, runtime, ignoreHttp }: ContentProps) => 
   const [words, setWords] = React.useState(50);
   const [callingOpenAi, setCallingOpenAi] = React.useState(false);
   const [callingAnki, setCallingAnki] = React.useState(false);
+  const [callingMochi, setCallingMochi] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState("");
   const [canPressGenerate, setCanPressGenerate] = React.useState(true);
   const [canPressAdd, setCanPressAdd] = React.useState(true);
@@ -58,15 +62,19 @@ const Content = ({ setVisible, storage, runtime, ignoreHttp }: ContentProps) => 
     // Get API key and anki key from storage
     storage.get({
       apiKey: '',
+      appSelection: 'anki',
       ankiKey: '',
       ankiDeck: '',
+      mochiKey: '',
+      mochiDeck: '',
     }, function (items) {
       setApiKey(items.apiKey);
-      setAnkiKey(items.ankiKey);
-      setAnkiDeck(items.ankiDeck);
+      setApp(items.appSelection);
+      setMochiKey(items.mochiKey);
+      setMochiDeck(items.mochiDeck);
       console.log("setting can press generate")
       setCanPressAdd(!(items.apiKey === null || items.apiKey === undefined || items.apiKey === ''))
-      setCanPressGenerate(!(items.ankiKey === null || items.ankiKey === undefined || items.ankiKey === '') && !(items.ankiDeck === null || items.ankiDeck === undefined || items.ankiDeck === ''))
+      setCanPressGenerate((!(items.ankiKey === null || items.ankiKey === undefined || items.ankiKey === '') && !(items.ankiDeck === null || items.ankiDeck === undefined || items.ankiDeck === '')) || (!(items.mochiKey === null || items.mochiKey === undefined || items.mochiKey === '') && !(items.mochiDeck === null || items.mochiDeck === undefined || items.mochiDeck === '')))
     });
     // Check if page is https
     if (window.location.protocol !== "https:" && !ignoreHttp) {
@@ -85,12 +93,18 @@ const Content = ({ setVisible, storage, runtime, ignoreHttp }: ContentProps) => 
           console.log("Received new options settings");
           storage.get({
             apiKey: '',
+            appSelection: 'anki',
             ankiKey: '',
             ankiDeck: '',
+            mochiKey: '',
+            mochiDeck: '',
           }, function (items) {
             setApiKey(items.apiKey);
+            setApp(items.appSelection);
             setAnkiKey(items.ankiKey);
             setAnkiDeck(items.ankiDeck);
+            setMochiKey(items.mochiKey);
+            setMochiDeck(items.mochiDeck);
           });
         }
         console.log("received message");
@@ -140,42 +154,62 @@ const Content = ({ setVisible, storage, runtime, ignoreHttp }: ContentProps) => 
 
   async function addNote() {
     setCallingAnki(true);
-    try {
-      await fetch("http://localhost:8765", {
-        method: "POST",
-        // set cors
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "addNote",
-          version: 6,
-          key: ankiKey,
-          params: {
-            note: {
-              deckName: ankiDeck,
-              modelName: "Basic",
-              fields: {
-                Front: question,
-                Back: answer,
-              },
-              options: {
-                allowDuplicate: false,
-                duplicateScope: "deck",
-                duplicateScopeOptions: {
-                  deckName: "Default",
-                  checkChildren: false,
+    if (appSelection === 'mochi') {
+      try {
+        await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Basic ${btoa(`${mochiKey}:`)}`
+          },
+          body: JSON.stringify({
+            content: `${question}\n---\n${answer}`,
+            "deck-id": mochiDeck,
+          }),
+        });
+        setErrorMessage("");
+      } catch (e) {
+        setErrorMessage("Error adding card to Mochi");
+        console.log(e);
+      }
+    } else {
+      try {
+        await fetch("http://localhost:8765", {
+          method: "POST",
+          // set cors
+          mode: "no-cors",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "addNote",
+            version: 6,
+            key: ankiKey,
+            params: {
+              note: {
+                deckName: ankiDeck,
+                modelName: "Basic",
+                fields: {
+                  Front: question,
+                  Back: answer,
+                },
+                options: {
+                  allowDuplicate: false,
+                  duplicateScope: "deck",
+                  duplicateScopeOptions: {
+                    deckName: "Default",
+                    checkChildren: false,
+                  },
                 },
               },
             },
-          },
-        }),
-      });
-      setErrorMessage("");
-    } catch (e) {
-      setErrorMessage("Error adding note to Anki");
-      console.log(e);
+          }),
+        });
+        setErrorMessage("");
+      } catch (e) {
+        setErrorMessage("Error adding note to Anki");
+        console.log(e);
+      }
     }
     setCallingAnki(false);
     return;
@@ -193,13 +227,13 @@ const Content = ({ setVisible, storage, runtime, ignoreHttp }: ContentProps) => 
   }
 
   let ankiKeyMessage = null;
-  if (ankiKey === null || ankiKey === undefined || ankiKey === '') {
-    ankiKeyMessage = <h1 className="text-red-400"><button onClick={openOptions}>You need to set the Anki API key</button></h1>
+  if ((mochiKey === null || mochiKey === undefined || mochiKey === '') && (ankiKey === null || ankiKey === undefined || ankiKey === '')) {
+    ankiKeyMessage = <h1 className="text-red-400"><button onClick={openOptions}>You need to set the Anki or Mochi API key</button></h1>
   }
 
   let ankiDeckMessage = null;
-  if (ankiDeck === null || ankiDeck === undefined || ankiDeck === '') {
-    ankiDeckMessage = <h1 className="text-red-400"><button onClick={openOptions}>You need to set the Anki deck</button></h1>
+  if ((mochiDeck === null || mochiDeck === undefined || mochiDeck === '') && (ankiDeck === null || ankiDeck === undefined || ankiDeck === '')) {
+    ankiDeckMessage = <h1 className="text-red-400"><button onClick={openOptions}>You need to set the Anki or Mochi deck</button></h1>
   }
 
   let errorDisplay = null;
@@ -209,7 +243,7 @@ const Content = ({ setVisible, storage, runtime, ignoreHttp }: ContentProps) => 
 
   return (
     <div className='p-2'>
-      <h1 className='mb-2 text-center'>{"Anki + LLMs = 🖤"}</h1>
+      <h1 className='mb-2 text-center'>{"SRS + LLMs = 🖤"}</h1>
       {isHttps && (<div className="flex flex-col w-fixed h-auto w-64">
       <div className="border rounded-md p-1 border-slate-400 mb-2">
           <input className="accent-sky-300" type="range" min="10" max="100" value={words} onChange={updateOnChange(setWords)} />
