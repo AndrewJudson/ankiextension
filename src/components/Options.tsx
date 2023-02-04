@@ -7,22 +7,34 @@ interface OptionsPrompts {
     }
 }
 
+const ANKI = 'ANKI';
+const MOCHI = 'MOCHI';
+
 function Options({storage}: OptionsPrompts) {
   const [apiKey, setApiKey] = React.useState<string>('');
   const [ankiKey, setAnkiKey] = React.useState<string>('');
   const [ankiDeck, setAnkiDeck] = React.useState<string>('');
+  const [mochiKey, setMochiKey] = React.useState<string>('');
+  const [mochiDeck, setMochiDeck] = React.useState<string>('');
+  const [appSelection, setApp] = React.useState<string>(ANKI);
   const [saveButtonText, setSaveButtonText] = React.useState<string>('Save');
   const [clearButtonText, setClearButtonText] = React.useState<string>('Clear');
   // Load saved keys, if they exists.
   useEffect(() => {
     storage.get({
       apiKey: '',
+      appSelection: ANKI,
       ankiKey: '',
       ankiDeck: '',
+      mochiKey: '',
+      mochiDeck: '',
     }, function (items) {
       setApiKey(items.apiKey);
+      setApp(items.appSelection);
       setAnkiKey(items.ankiKey);
       setAnkiDeck(items.ankiDeck);
+      setMochiKey(items.mochiKey);
+      setMochiDeck(items.mochiDeck);
     });
   }, []);
 
@@ -33,21 +45,26 @@ function Options({storage}: OptionsPrompts) {
   }
 
   function save() {
-    if (apiKey === '' || ankiKey === '' || ankiDeck === '') {
+    // if ((apiKey === '' || (mochiKey === '' || mochiDeck === '') || (ankiKey === '' || ankiDeck === '')) {
+    if (apiKey !== '' && ((mochiKey !== '' && mochiDeck !== '') || (ankiKey !== '' && ankiDeck !== ''))) {
+      storage.set({
+        apiKey: apiKey,
+        appSelection: appSelection,
+        ankiKey: ankiKey,
+        ankiDeck: ankiDeck,
+        mochiKey: mochiKey,
+        mochiDeck: mochiDeck,
+      }, function () {
+        // Update status to let user know options were saved.
+        setSaveButtonText('Options saved');
+        setTimeout(function () {
+          setSaveButtonText('Save');
+        }, 750);
+      })
+    } else {
       setSaveButtonText('Please fill out all fields');
       return;
     }
-    storage.set({
-      apiKey: apiKey,
-      ankiKey: ankiKey,
-      ankiDeck: ankiDeck,
-    }, function () {
-      // Update status to let user know options were saved.
-      setSaveButtonText('Options saved');
-      setTimeout(function () {
-        setSaveButtonText('Save');
-      }, 750);
-    })
   }
 
   function clear() {
@@ -55,11 +72,15 @@ function Options({storage}: OptionsPrompts) {
       apiKey: "",
       ankiKey: "",
       ankiDeck: "",
+      mochiKey: "",
+      mochiDeck: "",
     }, function () {
       // Update status to let user know options were saved.
-      setAnkiKey("");
       setApiKey("");
+      setAnkiKey("");
       setAnkiDeck("");
+      setMochiKey("");
+      setMochiDeck("");
       setClearButtonText('Settings cleared');
       setTimeout(function () {
         setClearButtonText('Clear');
@@ -76,8 +97,20 @@ function Options({storage}: OptionsPrompts) {
 
   return <div className="flex flex-col p-2 w-fit">
     {setterElement(apiKey, setApiKey, "Open AI API Key")}
-    {setterElement(ankiKey, setAnkiKey, "Anki API Key")}
-    {setterElement(ankiDeck, setAnkiDeck, "Anki Deck")}
+    <div>
+      <input type="radio" name="app" className="m-2"
+       onChange={function(event) { if (event.target.value === 'on') { setApp(ANKI) }}} checked={appSelection === ANKI}/>
+      <label for="app">Anki</label>
+    </div>
+    <div>
+      <input type="radio" name="app" className="m-2"
+       onChange={function(event) { if (event.target.value === 'on') { setApp(MOCHI) }}} check={appSelection === MOCHI}/>
+      <label for="app">Mochi</label>
+    </div>
+    {appSelection === ANKI && setterElement(ankiKey, setAnkiKey, "Anki API Key")}
+    {appSelection === ANKI && setterElement(ankiDeck, setAnkiDeck, "Anki Deck")}
+    {appSelection === MOCHI && setterElement(mochiKey, setMochiKey, "Mochi API Key")}
+    {appSelection === MOCHI && setterElement(mochiDeck, setMochiDeck, "Mochi Deck ID")}
     <button className="flex items-center justify-center mt-2 mb-2 border-2 rounded-md hover:bg-sky-200 bg-slate-300 px-1" onClick={save}>{saveButtonText}</button>
     <button className="flex items-center justify-center mt-2 mb-2 border-2 rounded-md hover:bg-sky-200 bg-red-300 px-1" onClick={clear}>{clearButtonText}</button>
   </div>;
