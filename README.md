@@ -5,6 +5,7 @@ To use it:
 Before installing extension:
 <details>
 <summary>For Anki</summary>
+
 1. Install and configure anki-connect plugin for your desktop Anki client (ankiweb does not provide API access so this is necessary to programmatically insert cards).
 2. Add ankiconnect API key [ankiconnect](/ankiconnect.png)
   1. Go to Add Ons Page in Anki
@@ -14,6 +15,7 @@ Before installing extension:
 </details>
 <details>
 <summary>For Mochi</summary>
+
 1. In Mochi go to Account Settings
 2. Scroll down to "API Keys"
 3. Create a new key, or copy an existing one.
